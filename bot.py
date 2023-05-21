@@ -16,6 +16,7 @@ bot = commands.Bot(command_prefix='!', description =description, intents=intents
 
 @bot.event
 async def on_ready():
+    await bot.add_cog(Admin(bot))
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     print('------')
 
@@ -25,54 +26,6 @@ async def on_member_join(member):
     if guild.system_channel is not None:
         to_send = f'Welcome {member.mention} to {guild.name}!'
         await guild.system_channel.send(to_send)
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def addUser(interaction: discord.Interaction, member: discord.Member, entries, cd):
-    '''(ADMIN ONLY) Adds user to tracker'''
-    user = member.id
-    guild = member.guild
-    conn = sqlite3.connect('users.db')
-    cur = conn.cursor()
-    cur.execute('INSERT INTO tracker VALUES(?, ?, ?)', (user, entries, cd))
-    conn.commit()
-    conn.close()
-    await guild.system_channel.send(member.name + " added to tracker")
-
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def raffle(ctx):
-    '''(ADMIN ONLY) Raffles for next choice'''
-    conn = sqlite3.connect('users.db')
-    cur = conn.cursor()
-
-    # Gets all entries from 
-    cur.execute('SELECT userid, entries FROM tracker')
-    rows = cur.fetchall()
-
-    raffle_list = []
-
-    # Build the raffle list
-    for row in rows:
-        userid = row[0]
-        entries = int(row[1])
-        
-        #sets amount of times user is in list based on number of entries
-        raffle_list.extend([userid] * entries)
-
-    #randomly chooses from raffle list
-    winner = random.choice(raffle_list)
-
-    await ctx.send(f"<@{winner}> has won the raffle!")
-
-    #decrements cooldown for all, if at 0 stay at zero
-    cur.execute('UPDATE tracker SET cooldown = MAX(cooldown - 1, 0) WHERE cooldown > 0')
-
-    #sets winner's entries to 0 and cooldown to 3
-    cur.execute('UPDATE tracker SET entries = 0, cooldown = 3 WHERE userid = ?', (winner,))
-
-    conn.commit()
-    conn.close()
 
 @bot.command()
 async def check(ctx):
@@ -104,17 +57,6 @@ async def check(ctx):
     conn.close()
 
 @bot.command()
-@commands.has_permissions(administrator=True)
-async def createTracker(ctx):
-    '''(ADMIN ONLY) creates tracker'''
-    print("adding table!")
-    conn = sqlite3.connect('users.db')
-    cur = conn.cursor()
-    cur.execute('CREATE TABLE tracker("userid", "entries", "cooldown")')
-    conn.commit()
-    conn.close()
-
-@bot.command()
 async def speech(ctx):
     '''Recites Nicole Kidman's speech'''
     with open('speech.txt') as file:
@@ -124,6 +66,71 @@ async def speech(ctx):
         speech += line
         speech += '\n'
     await ctx.send(speech)
+
+class Admin(commands.Cog):
+    """Commands for Administrators"""
+    def __init__(self, bot):
+        self.bot = bot
+        self._last_member = None
+    
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def createTracker(self, ctx):
+        '''(ADMIN ONLY) creates tracker'''
+        print("adding table!")
+        conn = sqlite3.connect('users.db')
+        cur = conn.cursor()
+        cur.execute('CREATE TABLE tracker("userid", "entries", "cooldown")')
+        conn.commit()
+        conn.close()
+
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def addUser(self, interaction: discord.Interaction, member: discord.Member, entries, cd):
+        '''(ADMIN ONLY) Adds user to tracker'''
+        user = member.id
+        guild = member.guild
+        conn = sqlite3.connect('users.db')
+        cur = conn.cursor()
+        cur.execute('INSERT INTO tracker VALUES(?, ?, ?)', (user, entries, cd))
+        conn.commit()
+        conn.close()
+        await guild.system_channel.send(member.name + " added to tracker")
+
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def raffle(self, ctx):
+        '''(ADMIN ONLY) Raffles for next choice'''
+        conn = sqlite3.connect('users.db')
+        cur = conn.cursor()
+
+        # Gets all entries from 
+        cur.execute('SELECT userid, entries FROM tracker')
+        rows = cur.fetchall()
+
+        raffle_list = []
+
+        # Build the raffle list
+        for row in rows:
+            userid = row[0]
+            entries = int(row[1])
+            
+            #sets amount of times user is in list based on number of entries
+            raffle_list.extend([userid] * entries)
+
+        #randomly chooses from raffle list
+        winner = random.choice(raffle_list)
+
+        await ctx.send(f"<@{winner}> has won the raffle!")
+
+        #decrements cooldown for all, if at 0 stay at zero
+        cur.execute('UPDATE tracker SET cooldown = MAX(cooldown - 1, 0) WHERE cooldown > 0')
+
+        #sets winner's entries to 0 and cooldown to 3
+        cur.execute('UPDATE tracker SET entries = 0, cooldown = 3 WHERE userid = ?', (winner,))
+
+        conn.commit()
+        conn.close()
 
 #loads token from token.txt and saves in token string
 with open('token.txt') as file:
