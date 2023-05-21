@@ -28,6 +28,17 @@ async def on_member_join(member):
         await guild.system_channel.send(to_send)
 
 @bot.command()
+async def speech(ctx):
+    '''Recites Nicole Kidman's speech'''
+    with open('speech.txt') as file:
+        lines = [line.strip() for line in file]
+    speech = ''
+    for line in lines:
+        speech += line
+        speech += '\n'
+    await ctx.send(speech)
+
+@bot.command()
 async def check(ctx):
     '''Checks cooldown/entries of user'''
     user = ctx.message.author.id
@@ -55,17 +66,6 @@ async def check(ctx):
             #calculates percentage based on total entries
             await ctx.send("You have a " + '{:.1%}'.format(int(entries)/totalEntries) + " chance to win!")
     conn.close()
-
-@bot.command()
-async def speech(ctx):
-    '''Recites Nicole Kidman's speech'''
-    with open('speech.txt') as file:
-        lines = [line.strip() for line in file]
-    speech = ''
-    for line in lines:
-        speech += line
-        speech += '\n'
-    await ctx.send(speech)
 
 class Admin(commands.Cog):
     """Commands for Administrators"""
@@ -96,6 +96,19 @@ class Admin(commands.Cog):
         conn.commit()
         conn.close()
         await guild.system_channel.send(member.name + " added to tracker")
+
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def decCD(self, ctx):
+        '''(ADMIN ONLY) Reduces all cooldowns by 1'''
+        conn = sqlite3.connect('users.db')
+        cur = conn.cursor()
+
+        #decrements cooldown for all, if at 0 stay at zero
+        cur.execute('UPDATE tracker SET cooldown = MAX(cooldown - 1, 0) WHERE cooldown > 0')
+
+        conn.commit()
+        conn.close()
 
     @commands.command()
     @commands.has_permissions(administrator=True)
