@@ -3,6 +3,7 @@
 import discord
 from discord.ext import commands
 import sqlite3
+import random
 
 description = 'A bot for helping AMC screenings'
 
@@ -27,7 +28,7 @@ async def on_member_join(member):
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def trackAdd(interaction: discord.Interaction, member: discord.Member, entries, cd):
+async def addUser(interaction: discord.Interaction, member: discord.Member, entries, cd):
     '''(ADMIN ONLY) Adds user to tracker'''
     user = member.id
     guild = member.guild
@@ -39,26 +40,68 @@ async def trackAdd(interaction: discord.Interaction, member: discord.Member, ent
     await guild.system_channel.send(member.name + " added to tracker")
 
 @bot.command()
+@commands.has_permissions(administrator=True)
+async def raffle(ctx):
+    '''(ADMIN ONLY) Raffles for next choice'''
+    conn = sqlite3.connect('users.db')
+    cur = conn.cursor()
+
+    # Gets all entries from 
+    cur.execute('SELECT userid, entries FROM tracker')
+    rows = cur.fetchall()
+
+    raffle_list = []
+
+    # Build the raffle list
+    for row in rows:
+        userid = row[0]
+        entries = int(row[1])
+        
+        #sets amount of times user is in list based on number of entries
+        raffle_list.extend([userid] * entries)
+
+    #randomly chooses from raffle list
+    winner = random.choice(raffle_list)
+
+    await ctx.send(f"<@{winner}> has won the raffle!")
+
+    #decrements cooldown for all, if at 0 stay at zero
+    cur.execute('UPDATE tracker SET cooldown = MAX(cooldown - 1, 0) WHERE cooldown > 0')
+
+    #sets winner's entries to 0 and cooldown to 3
+    cur.execute('UPDATE tracker SET entries = 0, cooldown = 3 WHERE userid = ?', (winner,))
+
+    conn.commit()
+    conn.close()
+
+@bot.command()
 async def check(ctx):
     '''Checks cooldown/entries of user'''
     user = ctx.message.author.id
     conn = sqlite3.connect('users.db')
     cur = conn.cursor()
+
+    #checks user's cooldown
     cur.execute('SELECT cooldown FROM tracker WHERE userid = ?', (user,))
     row = cur.fetchone()
 
+    #if user has cooldown and it isn't 0
     if (row is not None) and (int(row[0]) != 0):
         cd = str(row[0])
         await ctx.send(ctx.message.author.name + " is on cooldown for " + cd + " more screenings.")
     else:
+        #checks user's entries
         cur.execute('SELECT entries FROM tracker WHERE userid = ?', (user,))
         row = cur.fetchone()
+        #if user has entries
         if row is not None:
             entries = str(row[0])
             await ctx.send(ctx.message.author.name + " has " + entries + " entries.")
             cur.execute('SELECT SUM(entries) FROM tracker')
             totalEntries = cur.fetchone()[0]
+            #calculates percentage based on total entries
             await ctx.send("You have a " + '{:.1%}'.format(int(entries)/totalEntries) + " chance to win!")
+    conn.close()
 
 @bot.command()
 @commands.has_permissions(administrator=True)
