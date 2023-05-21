@@ -26,8 +26,9 @@ async def on_member_join(member):
         await guild.system_channel.send(to_send)
 
 @bot.command()
+@commands.has_permissions(administrator=True)
 async def trackAdd(interaction: discord.Interaction, member: discord.Member, entries, cd):
-    '''Adds user to tracker'''
+    '''(ADMIN ONLY) Adds user to tracker'''
     user = member.id
     guild = member.guild
     conn = sqlite3.connect('users.db')
@@ -39,7 +40,7 @@ async def trackAdd(interaction: discord.Interaction, member: discord.Member, ent
 
 @bot.command()
 async def check(ctx):
-    '''checks cooldown/entries of user'''
+    '''Checks cooldown/entries of user'''
     user = ctx.message.author.id
     conn = sqlite3.connect('users.db')
     cur = conn.cursor()
@@ -60,7 +61,9 @@ async def check(ctx):
             await ctx.send("You have a " + '{:.1%}'.format(int(entries)/totalEntries) + " chance to win!")
 
 @bot.command()
-async def temp(ctx):
+@commands.has_permissions(administrator=True)
+async def createTracker(ctx):
+    '''(ADMIN ONLY) creates tracker'''
     print("adding table!")
     conn = sqlite3.connect('users.db')
     cur = conn.cursor()
