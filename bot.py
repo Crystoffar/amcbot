@@ -17,6 +17,13 @@ async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     print('------')
 
+@bot.event
+async def on_member_join(member):
+    guild = member.guild
+    if guild.system_channel is not None:
+        to_send = f'Welcome {member.mention} to {guild.name}!'
+        await guild.system_channel.send(to_send)
+
 @bot.command()
 async def speech(ctx):
     with open('speech.txt') as file:
