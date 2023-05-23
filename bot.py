@@ -39,6 +39,25 @@ async def speech(ctx):
     await ctx.send(speech)
 
 @bot.command()
+async def attend(ctx):
+    '''Records attendance for going to a screening'''
+    user = ctx.message.author.id
+    conn = sqlite3.connect('users.db')
+    cur = conn.cursor()
+
+    cur.execute('UPDATE tracker SET entries = entries + 1 WHERE userid = ?', (user,))
+    cur.execute('SELECT entries FROM tracker WHERE userid = ?', (user,))
+    row = cur.fetchone()
+    if (row is not None):
+        entries = str(row[0])
+    else:
+        entries = '0'
+
+    conn.commit()
+    conn.close()
+    await ctx.send("Thanks for attending, " + ctx.message.author.name + ". You now have " + entries + " entries for the next raffle!")
+
+@bot.command()
 async def check(ctx):
     '''Checks cooldown/entries of user'''
     user = ctx.message.author.id
@@ -76,13 +95,26 @@ class Admin(commands.Cog):
     @commands.command()
     @commands.has_permissions(administrator=True)
     async def createTracker(self, ctx):
-        '''(ADMIN ONLY) creates tracker'''
+        '''(ADMIN ONLY) Creates tracker'''
         print("adding table!")
         conn = sqlite3.connect('users.db')
         cur = conn.cursor()
         cur.execute('CREATE TABLE tracker("userid", "entries", "cooldown")')
         conn.commit()
         conn.close()
+
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def setValues(self, interaction: discord.Interaction, member: discord.Member, entries, cd):
+        '''(ADMIN ONLY) Adds user to tracker'''
+        user = member.id
+        guild = member.guild
+        conn = sqlite3.connect('users.db')
+        cur = conn.cursor()
+        cur.execute('UPDATE tracker SET cooldown = ?, entries = ? WHERE userid = ?', (cd, entries, user))
+        conn.commit()
+        conn.close()
+        await guild.system_channel.send(member.name + " set to entries = " + entries + " cd = " + cd)
 
     @commands.command()
     @commands.has_permissions(administrator=True)
