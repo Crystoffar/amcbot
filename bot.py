@@ -84,7 +84,8 @@ async def screening(ctx):
         #info is saved as winner, movie, date
         info = pickle.load(fi)
 
-    user = await bot.fetch_user(info[0])
+    if info[0] != None:
+        user = await bot.fetch_user(info[0])
 
     if info[1] != "TBD":
         query = info[1] + "movie poster"
@@ -107,7 +108,10 @@ async def screening(ctx):
         else:
             await ctx.send("Sorry, I couldn't find any images for that query.")
 
-    await ctx.send("The next screening will be " + info[1] + " on " + info[2] + " chosen by " + user.name) 
+    if info[0] != None:
+        await ctx.send("The next screening will be " + info[1] + " on " + info[2] + " chosen by " + user.name)
+    else:
+        await ctx.send("The next screening will be " + info[1] + " on " + info[2])
 
 @bot.command()
 async def attend(ctx):
@@ -191,6 +195,17 @@ class Admin(commands.Cog):
 
     @commands.command()
     @commands.has_permissions(administrator=True)
+    async def manualScreening(self, ctx, movieName, date):
+        '''(ADMIN ONLY) Sets next screening manually'''
+
+        #pickles winner with chosen values
+        with open(winnerInfo, 'wb') as fi:
+            #info is saved as winner, movie, date
+            info = [None, movieName, date]
+            pickle.dump(info, fi)
+
+    @commands.command()
+    @commands.has_permissions(administrator=True)
     async def setDate(self, ctx, date):
         '''(ADMIN ONLY) Sets date for next screening'''
         #unpickles info from winner.pk
@@ -198,10 +213,22 @@ class Admin(commands.Cog):
             #info is saved as winner, movie, date
             info = pickle.load(fi)
 
-        #pickles winner with default values
+        #pickles winner with saved values
         with open(winnerInfo, 'wb') as fi:
             #info is saved as winner, movie, date
             info = [info[0], info[1], date]
+            pickle.dump(info, fi)
+
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def setWinner(self, ctx, member: discord.Member):
+        '''(ADMIN ONLY) Sets chooser for next screening'''
+        winner = member.id
+
+        #pickles winner with saved values
+        with open(winnerInfo, 'wb') as fi:
+            #info is saved as winner, movie, date
+            info = [winner, "TBD", "TBD"]
             pickle.dump(info, fi)
 
     @commands.command()
