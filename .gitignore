@@ -153,3 +153,7 @@ cython_debug/
 token.txt
 users.db
 winner.pk
+.dockerignore
+Dockerfile
+fly.toml
+requirements.txt
