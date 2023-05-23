@@ -48,20 +48,29 @@ async def attend(ctx):
     conn = sqlite3.connect('users.db')
     cur = conn.cursor()
 
-    #increments user's entries by 1
-    cur.execute('UPDATE tracker SET entries = entries + 1 WHERE userid = ?', (user,))
-    #saves entries to row 
-    cur.execute('SELECT entries FROM tracker WHERE userid = ?', (user,))
+    #checks user's cooldown
+    cur.execute('SELECT cooldown FROM tracker WHERE userid = ?', (user,))
     row = cur.fetchone()
-    #if user is in table, gets entries
-    if (row is not None):
-        entries = str(row[0])
+
+    #if user has cooldown and it isn't 0
+    if (row is not None) and (int(row[0]) != 0):
+        cd = str(row[0])
+        await ctx.send("Thanks for attending, " + ctx.message.author.name + ", but you are still on cooldown for " + cd + " more screenings.")
     else:
-        entries = '0'
+        #increments user's entries by 1
+        cur.execute('UPDATE tracker SET entries = entries + 1 WHERE userid = ?', (user,))
+        #saves entries to row 
+        cur.execute('SELECT entries FROM tracker WHERE userid = ?', (user,))
+        row = cur.fetchone()
+        #if user is in table, gets entries
+        if (row is not None):
+            entries = str(row[0])
+        else:
+            entries = '0'
+        await ctx.send("Thanks for attending, " + ctx.message.author.name + ". You now have " + entries + " entries for the next raffle!")
 
     conn.commit()
     conn.close()
-    await ctx.send("Thanks for attending, " + ctx.message.author.name + ". You now have " + entries + " entries for the next raffle!")
 
 @bot.command()
 async def check(ctx):
@@ -89,7 +98,10 @@ async def check(ctx):
             cur.execute('SELECT SUM(entries) FROM tracker')
             totalEntries = cur.fetchone()[0]
             #calculates percentage based on total entries
-            await ctx.send("You have a " + '{:.1%}'.format(int(entries)/totalEntries) + " chance to win!")
+            if row[0] != 0:
+                await ctx.send("You have a " + '{:.1%}'.format(int(entries)/totalEntries) + " chance to win!")
+            else:
+                await ctx.send("You have a {:.1%} chance to win!".format(0))
     conn.close()
 
 class Admin(commands.Cog):
