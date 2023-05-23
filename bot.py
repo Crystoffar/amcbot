@@ -22,6 +22,7 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
+    #sets guild to discord server
     guild = member.guild
     if guild.system_channel is not None:
         to_send = f'Welcome {member.mention} to {guild.name}!'
@@ -30,9 +31,11 @@ async def on_member_join(member):
 @bot.command()
 async def speech(ctx):
     '''Recites Nicole Kidman's speech'''
+    #opens speech.text and loads into lines array
     with open('speech.txt') as file:
         lines = [line.strip() for line in file]
     speech = ''
+    #iterates through lines array and saves to speech string
     for line in lines:
         speech += line
         speech += '\n'
@@ -45,9 +48,12 @@ async def attend(ctx):
     conn = sqlite3.connect('users.db')
     cur = conn.cursor()
 
+    #increments user's entries by 1
     cur.execute('UPDATE tracker SET entries = entries + 1 WHERE userid = ?', (user,))
+    #saves entries to row 
     cur.execute('SELECT entries FROM tracker WHERE userid = ?', (user,))
     row = cur.fetchone()
+    #if user is in table, gets entries
     if (row is not None):
         entries = str(row[0])
     else:
