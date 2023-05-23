@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 import sqlite3
 import random
+import pickle
 
 description = 'A bot for helping AMC screenings'
 
@@ -11,6 +12,8 @@ description = 'A bot for helping AMC screenings'
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
+
+winnerInfo = 'winner.pk'
 
 bot = commands.Bot(command_prefix='!', description =description, intents=intents)
 
@@ -40,6 +43,38 @@ async def speech(ctx):
         speech += line
         speech += '\n'
     await ctx.send(speech)
+
+@bot.command()
+async def chooseMovie(ctx, movieName):
+    '''Allows raffle winner to select next movie'''
+    #unpickles info from winner.pk
+    with open(winnerInfo, 'rb') as fi:
+        #info is saved as winner, movie, date
+        info = pickle.load(fi)
+    
+    if(ctx.message.author.id == info[0]):
+        #pickles winner with default values
+        with open(winnerInfo, 'wb') as fi:
+            #info is saved as winner, movie, date
+            info = [info[0], movieName, info[2]]
+            pickle.dump(info, fi)
+
+        await ctx.send("Okay, the next screening will be " + movieName)
+    else:
+        await ctx.send("You're not the most recent raffle winner.")
+
+
+@bot.command()
+async def screening(ctx):
+    '''Provides information for next screening'''
+    #unpickles info from winner.pk
+    with open(winnerInfo, 'rb') as fi:
+        #info is saved as winner, movie, date
+        info = pickle.load(fi)
+
+    user = await bot.fetch_user(info[0])
+
+    await ctx.send("The next screening will be " + info[1] + " on " + info[2] + " chosen by " + user.name) 
 
 @bot.command()
 async def attend(ctx):
@@ -123,8 +158,23 @@ class Admin(commands.Cog):
 
     @commands.command()
     @commands.has_permissions(administrator=True)
+    async def setDate(self, ctx, date):
+        '''(ADMIN ONLY) Sets date for next screening'''
+        #unpickles info from winner.pk
+        with open(winnerInfo, 'rb') as fi:
+            #info is saved as winner, movie, date
+            info = pickle.load(fi)
+
+        #pickles winner with default values
+        with open(winnerInfo, 'wb') as fi:
+            #info is saved as winner, movie, date
+            info = [info[0], info[1], date]
+            pickle.dump(info, fi)
+
+    @commands.command()
+    @commands.has_permissions(administrator=True)
     async def setValues(self, interaction: discord.Interaction, member: discord.Member, entries, cd):
-        '''(ADMIN ONLY) Adds user to tracker'''
+        '''(ADMIN ONLY) Manually sets values for user'''
         user = member.id
         guild = member.guild
         conn = sqlite3.connect('users.db')
@@ -185,6 +235,12 @@ class Admin(commands.Cog):
         winner = random.choice(raffle_list)
 
         await ctx.send(f"<@{winner}> has won the raffle!")
+
+        #pickles winner with default values
+        with open(winnerInfo, 'wb') as fi:
+            #info is saved as winner, movie, date
+            info = [winner, "TBD", "TBD"]
+            pickle.dump(info, fi)
 
         #decrements cooldown for all, if at 0 stay at zero
         cur.execute('UPDATE tracker SET cooldown = MAX(cooldown - 1, 0) WHERE cooldown > 0')

@@ -152,3 +152,4 @@ cython_debug/
 #.idea/
 token.txt
 users.db
+winner.pk
