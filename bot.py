@@ -5,6 +5,18 @@ from discord.ext import commands
 import sqlite3
 import random
 import pickle
+from google_images_search import GoogleImagesSearch
+import os
+
+#loads token, api, and cx from token.txt and saves in token string
+with open('token.txt') as file:
+    lines = [line.strip() for line in file]
+token = lines[0]
+api = lines[1]
+cx = lines[2]
+
+# Set up the Google Images API
+gis = GoogleImagesSearch(api, cx)
 
 description = 'A bot for helping AMC screenings'
 
@@ -73,6 +85,27 @@ async def screening(ctx):
         info = pickle.load(fi)
 
     user = await bot.fetch_user(info[0])
+
+    if info[1] != "TBD":
+        query = info[1] + "movie poster"
+
+        gis.search({'q': query, 'num': 1})
+        results = gis.results()
+        if len(results) > 0:
+            image = results[0]
+            filename = image.url.split('/')[-1]
+            image.download('./images')
+            with open(f'./images/{filename}', 'rb') as f:
+                picture = discord.File(f)
+                await ctx.send(file=picture)
+
+            poster = './images/' + filename
+            try:
+                os.remove(poster)
+            except OSError as e:
+                print("Error: %s file not found" % poster)
+        else:
+            await ctx.send("Sorry, I couldn't find any images for that query.")
 
     await ctx.send("The next screening will be " + info[1] + " on " + info[2] + " chosen by " + user.name) 
 
@@ -250,10 +283,5 @@ class Admin(commands.Cog):
 
         conn.commit()
         conn.close()
-
-#loads token from token.txt and saves in token string
-with open('token.txt') as file:
-    lines = [line.strip() for line in file]
-token = lines[0]
 
 bot.run(token)
